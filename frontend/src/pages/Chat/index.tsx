@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
 
-// import { Container } from './styles';
+import { Container } from './styles';
+import { ThemeContext } from '../../context/ThemeContext';
 
 const Chat: React.FC = () => {
-  return <div />;
+  const { selectedTheme } = useContext<any>(ThemeContext);
+
+  return <Container theme={selectedTheme}></Container>;
 };
 
 export default Chat;

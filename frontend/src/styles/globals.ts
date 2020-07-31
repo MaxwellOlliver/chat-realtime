@@ -13,4 +13,10 @@ export const Global = createGlobalStyle`
     font-family: 'Roboto', Arial, Helvetica, sans-serif;
     font-size: 16px;
   }
+
+  #root {
+    width: 100%;
+    height: 100vh;
+    position: relative;
+  }
 `;

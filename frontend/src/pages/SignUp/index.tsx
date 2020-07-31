@@ -3,8 +3,8 @@ import * as Yup from 'yup';
 
 import { Container, Form } from './styles';
 import api from '../../services/api';
-import ThemeSwitcher from '../../components/ThemeSwitcher';
 import { ThemeContext } from '../../context/ThemeContext';
+import SignUpModal from '../../components/SignUpModal';
 
 const SignUp: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -14,6 +14,7 @@ const SignUp: React.FC = () => {
   const [error, setError] = useState('');
   const [showError, setShowError] = useState(false);
   const [disable, setDisable] = useState(true);
+  const [show, setShow] = useState(false);
 
   const { selectedTheme } = useContext<any>(ThemeContext);
 
@@ -35,20 +36,18 @@ const SignUp: React.FC = () => {
     if (!(await schema.isValid({ name, email, password, confirmPassword }))) {
       if (email.length === 0 && password.length === 0) {
         setError('You forgot to fill in all the fields, sir!');
-        setShowError(true);
       } else if (email.length === 0) {
         setError("Don't forget your email!");
-        setShowError(true);
       } else if (password.length === 0) {
         setError('Hey, dummy, you forgot to type your password.');
-        setShowError(true);
       } else if (password.length < 8) {
         setError('Password too short...');
-        setShowError(true);
       } else if (password !== confirmPassword) {
         setError('Passwords does not match.');
-        setShowError(true);
+      } else {
+        setError('Unknown error');
       }
+      setShowError(true);
 
       clearTimeout(timeout);
       timeout = setTimeout(() => setShowError(false), 5000);
@@ -56,18 +55,19 @@ const SignUp: React.FC = () => {
       return;
     }
 
-    // try {
-    //   const response = await api.post('/session', { email, password });
-    // } catch (error) {
-    //   setError('I think you typed something wrong.');
-    //   setShowError(true);
+    try {
+      await api.post('/signup', { name, email, password });
+      setShow(true);
+    } catch (error) {
+      setError('Internall error ;(');
+      setShowError(true);
 
-    //   setTimeout(() => setShowError(false), 5000);
-    // }
+      setTimeout(() => setShowError(false), 5000);
+    }
   }
   return (
     <Container theme={selectedTheme}>
-      <ThemeSwitcher />
+      <SignUpModal show={show} />
       <Form onSubmit={handleSubmit} theme={selectedTheme}>
         <h1>Sign Up</h1>
         <div>

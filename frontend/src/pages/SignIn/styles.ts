@@ -2,10 +2,19 @@ import styled, { keyframes } from 'styled-components';
 
 const slideDown = keyframes`
   from {
-    margin-top: 0%;
+
   }
   to {
     margin-top: 70%;
+  }
+`;
+
+const slideUp = keyframes`
+  from {
+    margin-top: 70%;
+  }
+  to {
+    margin-top: 0%;
   }
 `;
 
@@ -16,6 +25,16 @@ const fade = keyframes`
   to {
     opacity: 0;
     visibility: hidden;
+  }
+`;
+
+const fadeOut = keyframes`
+  from {
+    opacity: 0;
+  }
+  to {
+    visibility: visible;
+    opacity: 100;
   }
 `;
 
@@ -59,6 +78,11 @@ export const Form: any = styled.form`
     &.fade {
       animation: ${fade} 0.3s forwards;
     }
+
+    &.fadeOut {
+      opacity: 0;
+      animation: ${fadeOut} 3.3s 1s forwards;
+    }
   }
 
   h1 {
@@ -70,6 +94,10 @@ export const Form: any = styled.form`
 
     &.slide {
       animation: ${slideDown} 1s 0.3s ease-out forwards;
+    }
+
+    &.slideup {
+      animation: ${slideUp} 1s ease-out forwards;
     }
   }
 

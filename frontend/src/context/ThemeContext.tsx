@@ -27,7 +27,7 @@ export const ThemeProvider: React.FC = ({ children }) => {
       id: 2,
       primary: '#53d8d1',
       secondary: '#5d8fb8',
-      fontColor: '#8dc8da',
+      fontColor: '#74bee0',
     },
     {
       id: 3,

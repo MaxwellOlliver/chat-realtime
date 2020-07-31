@@ -9,6 +9,7 @@ export const Container = styled.div`
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  z-index: 9999;
 
   box-sizing: 0 0 20px 0 rgba(0, 0, 0, 0.3);
 
@@ -123,6 +124,11 @@ export const ListColor = styled.li`
     )
     center;
   background-size: 200%;
+  transition: all 0.3s;
 
   cursor: pointer;
+
+  &:hover {
+    filter: brightness(0.9);
+  }
 `;

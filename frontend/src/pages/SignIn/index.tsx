@@ -4,7 +4,6 @@ import * as Yup from 'yup';
 import { Container, Form } from './styles';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import ThemeSwitcher from '../../components/ThemeSwitcher';
 import { ThemeContext } from '../../context/ThemeContext';
 
 const SignIn: React.FC = () => {
@@ -49,21 +48,28 @@ const SignIn: React.FC = () => {
       return;
     }
 
+    titleRef.current.classList.remove('slideup');
+    sectionRef.current.classList.remove('fadeOut');
     titleRef.current.classList.add('slide');
     sectionRef.current.classList.add('fade');
 
-    // try {
-    //   const response = await api.post('/session', { email, password });
-    // } catch (error) {
-    //   setError('I think you typed something wrong.');
-    //   setShowError(true);
+    try {
+      const response = await api.post('/session', { email, password });
 
-    //   setTimeout(() => setShowError(false), 5000);
-    // }
+      localStorage.setItem('CR_TOKEN', response.data.token);
+    } catch (error) {
+      titleRef.current.classList.remove('slide');
+      sectionRef.current.classList.remove('fade');
+      titleRef.current.classList.add('slideup');
+      sectionRef.current.classList.add('fadeOut');
+      setError('I think you typed something wrong.');
+      setShowError(true);
+
+      setTimeout(() => setShowError(false), 5000);
+    }
   }
   return (
     <Container theme={selectedTheme}>
-      <ThemeSwitcher />
       <Form onSubmit={handleSubmit} theme={selectedTheme}>
         <h1 ref={titleRef}>Sign In</h1>
         <div ref={sectionRef}>
