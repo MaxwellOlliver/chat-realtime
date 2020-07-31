@@ -3,7 +3,7 @@ import { BrowserRouter, Switch, Route } from 'react-router-dom';
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import Chat from './pages/Chat';
-import PrivateRoute from './helpers/PrivateRoute';
+// import PrivateRoute from './helpers/PrivateRoute';
 
 const Routes: React.FC = () => {
   return (

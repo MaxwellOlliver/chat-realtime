@@ -156,12 +156,6 @@ export const Form: any = styled.form`
     margin: 10px 0;
     font-weight: 300;
 
-    transition: background-color 0.3s;
-
-    &:hover {
-      background-color: #ffffffca;
-    }
-
     &:last-child {
       margin: 0;
     }

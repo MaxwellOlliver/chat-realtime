@@ -43,7 +43,7 @@ export const ThemeProvider: React.FC = ({ children }) => {
     },
     {
       id: 5,
-      primary: '#c5675b',
+      primary: '#d67659',
       secondary: '#c25a79',
       fontColor: '#c98288',
     },
@@ -55,14 +55,15 @@ export const ThemeProvider: React.FC = ({ children }) => {
     },
   ];
 
-  const selectTheme = (id: number, showModal?: any): void => {
+  const selectTheme = useCallback((id: number, showModal?: any): void => {
     localStorage.setItem('CR_THEME', String(id));
 
     let color: any = colors.find((value) => value.id === id);
 
     setSelectedTheme(color);
     showModal(false);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let color: any = localStorage.getItem('CR_THEME');

@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 
-import { Container, Modal, Arrow, ListColor } from './styles';
+import { Container, Arrow, ListColor } from './styles';
 import { ThemeContext } from '../../context/ThemeContext';
 
 import { motion } from 'framer-motion';

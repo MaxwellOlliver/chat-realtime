@@ -19,4 +19,13 @@ export const Global = createGlobalStyle`
     height: 100vh;
     position: relative;
   }
+
+  button {
+    cursor: pointer;
+    transition: filter 0.3s;
+
+    &:hover {
+      filter: brightness(0.9);
+    }
+  }
 `;
