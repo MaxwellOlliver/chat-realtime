@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 
 interface Props {
   coordinates: {
@@ -7,16 +7,30 @@ interface Props {
   };
 }
 
+const animationHeight = keyframes`
+  from {
+    height: 100px;
+    opacity: 0;
+  } to {
+    height: 120px;
+    opacity: 1;
+  }
+`;
+
 export const Modal = styled.ul<Props>`
   list-style: none;
   width: 200px;
+  height: 120px;
   background-color: #fff;
   box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.2);
   border-radius: 4px;
+  overflow: hidden;
 
   position: absolute;
   top: ${(props) => props.coordinates.y}px;
   left: ${(props) => props.coordinates.x}px;
+
+  animation: ${animationHeight} 0.1s ease-out;
 
   li {
     height: 40px;
