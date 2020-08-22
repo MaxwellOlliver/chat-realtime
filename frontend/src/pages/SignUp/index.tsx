@@ -56,6 +56,7 @@ const SignUp: React.FC = () => {
     }
 
     try {
+      console.log('teste');
       await api.post('/signup', { name, email, password });
       setShow(true);
     } catch (error) {

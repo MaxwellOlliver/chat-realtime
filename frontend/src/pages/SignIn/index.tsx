@@ -5,8 +5,9 @@ import { Container, Form } from './styles';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { ThemeContext } from '../../context/ThemeContext';
+import { UserContext } from '../../context/UserContext';
 
-const SignIn: React.FC = () => {
+const SignIn: React.FC<{ history: any }> = ({ history }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,6 +17,7 @@ const SignIn: React.FC = () => {
   const sectionRef: any = useRef(null);
 
   const { selectedTheme } = useContext<any>(ThemeContext);
+  const { handleSignIn } = useContext(UserContext);
 
   let timeout: any;
 
@@ -54,9 +56,7 @@ const SignIn: React.FC = () => {
     sectionRef.current.classList.add('fade');
 
     try {
-      const response = await api.post('/session', { email, password });
-
-      localStorage.setItem('CR_TOKEN', response.data.token);
+      if (handleSignIn) await handleSignIn(email, password, history);
     } catch (error) {
       titleRef.current.classList.remove('slide');
       sectionRef.current.classList.remove('fade');

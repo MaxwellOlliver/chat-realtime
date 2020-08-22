@@ -6,10 +6,10 @@ const PrivateRoute: React.FC<{
   component: React.FC<any>;
   path: string;
   exact?: boolean;
-}> = ({ component: Component, ...rest }) => {
+}> = ({ component: Component, ...props }) => {
   return (
     <Route
-      {...rest}
+      {...props}
       render={(props) =>
         isAuthenticated() ? (
           <Component {...props} />
