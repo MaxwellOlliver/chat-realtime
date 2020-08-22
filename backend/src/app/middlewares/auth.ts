@@ -11,6 +11,7 @@ interface ReqInterface extends Request {
 
 export default async (req: ReqInterface, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
+
   if (!authHeader) {
     return res.status(401).json({ error: 'Token not provided' });
   }

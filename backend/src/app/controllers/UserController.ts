@@ -1,6 +1,7 @@
 import User from '../models/User';
 import * as Yup from 'yup';
 import { Request, Response } from 'express';
+import { RequestWithUserId } from '../../type';
 
 class UserController {
   async store(req: Request, res: Response) {
@@ -27,6 +28,26 @@ class UserController {
       email,
       password,
     });
+
+    return res.json(user);
+  }
+
+  async index(req: Request, res: Response) {
+    const q = req.query.q;
+
+    if (!q) {
+      return res.status(400).json({ error: 'Query not provided' });
+    }
+
+    const regex = new RegExp(`^${q}`);
+
+    const users = await User.find({ email: regex });
+
+    return res.json(users);
+  }
+
+  async show(req: RequestWithUserId, res: Response) {
+    const user = await User.findById(req.userId);
 
     return res.json(user);
   }
