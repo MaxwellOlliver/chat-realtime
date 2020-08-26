@@ -3,9 +3,10 @@ import User from '../models/User';
 import * as Yup from 'yup';
 import { Response } from 'express';
 import { RequestWithUserId } from '../../type';
+import ConnectedUsers from '../models/ConnectedUsers';
 
 class MessageController {
-  async store(req: RequestWithUserId, res: Response) {
+  async store(req: any, res: Response) {
     const scheme = Yup.object().shape({
       content: Yup.string().required(),
       to: Yup.string().required(),
@@ -40,20 +41,25 @@ class MessageController {
       to,
     });
 
-    const message = await Message.findOne({ _id: msg._id })
+    const message: any = await Message.findById(msg._id)
       .populate('from', 'name')
       .populate('to', 'name');
 
-    // const ownerSocket = req.connectedUsers[message.to._id];
+    // const ownerSocket: any = await ConnectedUsers.findOne({
+    //   userId: message.to._id,
+    // });
+    const ownerSocket = req.connectedUsers[message.to._id];
 
-    // if (ownerSocket) {
-    //   req.io.to(ownerSocket).emit('message', message);
-    // }
+    if (ownerSocket) {
+      req.io
+        .to(ownerSocket.socketId)
+        .emit('receivedMessage', { data: message });
+    }
 
     return res.json(message);
   }
 
-  async index(req: RequestWithUserId, res: Response) {
+  async index(req: any, res: Response) {
     const { recipient, page = 1 }: any = req.query;
 
     const messages = await Message.find({
@@ -73,46 +79,37 @@ class MessageController {
     return res.json(messages);
   }
 
-  async listUsers(req: RequestWithUserId, res: Response) {
+  async listUsers(req: any, res: Response) {
     const messages = await Message.find({
       $or: [{ from: req.userId }, { to: req.userId }],
     })
+      .sort({ createdAt: -1 })
       .populate('from', ['name', 'email'])
       .populate('to', ['name', 'email']);
 
     let users: any = [];
 
-    messages.map((value: any) => {
+    messages.forEach((value: any) => {
       if (value.from._id == req.userId) {
-        if (
-          !users.includes(`${value.to.name}.${value.to._id}.${value.to.email}`)
-        ) {
-          users.push(`${value.to.name}.${value.to._id}.${value.to.email}`);
+        if (!users.find((user: any) => user.email === value.to.email)) {
+          users.push({
+            _id: value.to._id,
+            name: value.to.name,
+            email: value.to.email,
+          });
         }
       } else {
-        if (
-          !users.includes(
-            `${value.from.name}.${value.from._id}.${value.from.email}`
-          )
-        ) {
-          users.push(
-            `${value.from.name}.${value.from._id}.${value.from.email}`
-          );
+        if (!users.find((user: any) => user.email === value.from.email)) {
+          users.push({
+            _id: value.from._id,
+            name: value.from.name,
+            email: value.from.email,
+          });
         }
       }
     });
 
-    let usersObject = users
-      ? users.map((value: any) => {
-          return {
-            name: value.split('.')[0],
-            _id: value.split('.')[1],
-            email: value.split('.')[2],
-          };
-        })
-      : [];
-
-    return res.json(usersObject);
+    return res.json(users);
   }
 }
 

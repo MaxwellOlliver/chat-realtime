@@ -9,7 +9,7 @@ interface RequestSession extends Request {
 }
 
 class SessionController {
-  async create(request: Request, response: Response) {
+  async create(request: any, response: Response) {
     const schema = Yup.object().shape({
       email: Yup.string().required(),
       password: Yup.string().required(),

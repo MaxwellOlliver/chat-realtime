@@ -4,7 +4,7 @@ import { Request, Response } from 'express';
 import { RequestWithUserId } from '../../type';
 
 class UserController {
-  async store(req: Request, res: Response) {
+  async store(req: any, res: Response) {
     const schema = Yup.object().shape({
       email: Yup.string().email().required(),
       name: Yup.string(),
@@ -46,7 +46,7 @@ class UserController {
     return res.json(users);
   }
 
-  async show(req: RequestWithUserId, res: Response) {
+  async show(req: any, res: Response) {
     const user = await User.findById(req.userId);
 
     return res.json(user);

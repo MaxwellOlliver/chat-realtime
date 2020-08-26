@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { Socket } from 'socket.io';
 
 export interface UserCreateRequestInterface extends Request {
   body: {
@@ -20,6 +21,7 @@ export interface UserCreateRequestInterface extends Request {
 
 export interface RequestWithUserId extends Request {
   userId?: string;
+  io: Socket;
 }
 
 export interface PostCreateRequestInterface extends Request {
