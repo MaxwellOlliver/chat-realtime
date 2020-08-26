@@ -69,8 +69,8 @@ const SignIn: React.FC<{ history: any }> = ({ history }) => {
     }
   }
   return (
-    <Container theme={selectedTheme}>
-      <Form onSubmit={handleSubmit} theme={selectedTheme}>
+    <Container>
+      <Form onSubmit={handleSubmit}>
         <h1 ref={titleRef}>Sign In</h1>
         <div ref={sectionRef}>
           <input

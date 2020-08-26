@@ -477,12 +477,25 @@ export const Chat = styled.div`
       background-color: #ccc;
     }
 
+    .no-messages {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      p {
+        color: #ccc;
+        font-weight: 300;
+      }
+    }
+
     .received,
     .sent {
       min-width: 100%;
       width: 100%;
       color: #fff;
       display: flex;
+      margin-bottom: 10px;
 
       > div {
         display: flex;

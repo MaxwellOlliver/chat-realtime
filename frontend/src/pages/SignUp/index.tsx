@@ -67,9 +67,9 @@ const SignUp: React.FC = () => {
     }
   }
   return (
-    <Container theme={selectedTheme}>
+    <Container>
       <SignUpModal show={show} />
-      <Form onSubmit={handleSubmit} theme={selectedTheme}>
+      <Form onSubmit={handleSubmit}>
         <h1>Sign Up</h1>
         <div>
           <input

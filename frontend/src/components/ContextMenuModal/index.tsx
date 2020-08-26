@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useRef } from 'react';
 
 import { Modal } from './styles';
 
@@ -31,7 +31,7 @@ const ContextMenuModal: React.FC<{
 
   async function handleDeleteAMessage() {
     // try {
-    //   await api.put('/messages?method="delete"', {
+    //   await api.put('/messages?method=delete', {
     //     headers: { msgId: props.message._id },
     //   });
     // } catch (error) {

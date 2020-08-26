@@ -7,15 +7,15 @@ export interface User {
   email?: string;
 }
 
-export type TUserContext = {
+export type TUserContext<T = any> = {
   handleSignIn(email: string, password: string, navigation: any): Promise<void>;
-  setUser(value: User): any;
+  setUser(value: T): any;
   _setToken(token: string): void;
   token: string;
-  user: User;
+  user: T;
 };
 
-export const UserContext = createContext<Partial<TUserContext>>({});
+export const UserContext = createContext<Partial<TUserContext<User>>>({});
 
 export const UserProvider: React.FC = ({ children }) => {
   const [user, setUser] = useState({});

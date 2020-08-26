@@ -1,4 +1,11 @@
-import React, { createContext, useState, useCallback, useEffect } from 'react';
+import React, {
+  createContext,
+  useState,
+  useCallback,
+  useEffect,
+  SetStateAction,
+  Dispatch,
+} from 'react';
 
 interface Color {
   id: number;
@@ -7,7 +14,13 @@ interface Color {
   fontColor: string;
 }
 
-export const ThemeContext = createContext({});
+export type IThemeProvider<T = any> = {
+  selectedTheme: T;
+  selectTheme(id: number, showModal?: Dispatch<SetStateAction<boolean>>): void;
+  colors: Color[];
+};
+
+export const ThemeContext = createContext<Partial<IThemeProvider<Color>>>({});
 
 export const ThemeProvider: React.FC = ({ children }) => {
   const [selectedTheme, setSelectedTheme] = useState({

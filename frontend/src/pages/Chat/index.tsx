@@ -1,6 +1,11 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import _ from 'lodash';
 
+import { formatRelative } from 'date-fns';
+import pt from 'date-fns/locale/pt-BR';
+
+import socketio from 'socket.io-client';
+
 import { FiLogOut, FiSend, FiEye, FiSearch } from 'react-icons/fi';
 import ContextMenuModal from '../../components/ContextMenuModal';
 
@@ -11,28 +16,45 @@ import {
   Chat as ChatComponent,
   Suggestions,
 } from './styles';
-import { ThemeContext } from '../../context/ThemeContext';
 
 import api from '../../services/api';
 import { UserContext, User } from '../../context/UserContext';
+import { AxiosResponse } from 'axios';
+import { parseISO } from 'date-fns/esm';
+
+interface Partner {
+  _id: string;
+  name: string;
+  email: string;
+}
+
+interface Message {
+  _id: string;
+  content: string;
+  from: User;
+  to: User;
+  createdAt: string;
+}
 
 const Chat: React.FC<{ history: any }> = ({ history }) => {
   const [showContext, setShowContext] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const [partnerId, setPartnerId] = useState<string | null>(null);
+  const [partner, setPartner] = useState<Partner | null>(null);
   const [suggestions, setSuggestions] = useState([]);
 
-  const [recents, setRecents] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [recents, setRecents] = useState<Partner[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messageContent, setMessageContent] = useState('');
   const [coordinates, setCoordinates] = useState<{ x?: number; y?: number }>(
     {}
   );
 
   const searchRef = useRef<HTMLInputElement>(null);
   const page = useRef<number>(1);
+  const messageBodyRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLAudioElement>(null);
 
-  const { selectedTheme } = useContext<any>(ThemeContext);
   const { user, token, setUser, _setToken } = useContext(UserContext);
 
   function openContextMenu(e: MouseEvent, message: any) {
@@ -68,6 +90,52 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, setUser]);
+
+  useEffect(() => {
+    let tk = token || localStorage.getItem('CR_TOKEN');
+    const socket = socketio.connect('http://localhost:3333', {
+      query: {
+        token: tk,
+      },
+    });
+
+    socket.on('receivedMessage', (data: Message) => {
+      console.log(data);
+      if (partner?._id === data.from._id) {
+        let newMessage = {
+          ...data,
+          formattedDate: formatRelative(parseISO(data.createdAt), new Date(), {
+            locale: pt,
+          }),
+        };
+        setMessages([...messages, newMessage]);
+      }
+
+      if (recents.filter((value) => value._id === partner?._id).length > 0) {
+        recents.splice(
+          recents
+            .map((value) => (value as Partner)._id)
+            .indexOf(partner?._id as string),
+          1
+        );
+      }
+      setRecents([{ ...(partner as Partner) }, ...recents]);
+      // if (!partner._id) {
+      //   document
+      //     .querySelector(`#user-${data.from._id}`)
+      //     .classList.add('message-received');
+      // } else if (partner._id !== data.from._id) {
+      //   document
+      //     .querySelector(`#user-${data.from._id}`)
+      //     .classList.add('message-received');
+      // }
+
+      if (messageBodyRef.current) {
+        messageBodyRef.current.scrollTop = messageBodyRef.current.scrollHeight;
+      }
+    });
+    //eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, messages, recents]);
 
   function autosize() {
     let el = document.querySelector('textarea');
@@ -109,29 +177,102 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
     }
   }, 100);
 
-  async function loadMessages(id: string) {
+  async function loadMessages(_id: string, name: string, email: string) {
+    if (_id === partner?._id) return;
+
     try {
-      console.log('teste');
-      const response = await api.get(`/message/list?recipient=${id}`, {
-        headers: { authorization: `Bearer ${token}` },
+      const response: AxiosResponse<Message[]> = await api.get(
+        `/message/list?recipient=${_id}`,
+        {
+          headers: { authorization: `Bearer ${token}` },
+        }
+      );
+
+      setPartner({ _id, name, email });
+
+      let formatted = response.data.map((value: any) => {
+        return {
+          ...value,
+          formattedDate: formatRelative(parseISO(value.createdAt), new Date(), {
+            locale: pt,
+          }),
+        };
       });
 
-      setPartnerId(id);
-      setMessages(response.data);
+      setMessages(formatted);
+      if (messageBodyRef.current) {
+        messageBodyRef.current.scrollTop = messageBodyRef.current.scrollHeight;
+      }
     } catch (err) {
       console.log(err);
     }
   }
 
+  async function sendMessage() {
+    if (messageContent) {
+      try {
+        const response: AxiosResponse<Message> = await api.post(
+          '/message',
+          {
+            content: messageContent,
+            from: user?._id,
+            to: partner?._id,
+          },
+          {
+            headers: {
+              authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        let newMessage = {
+          ...response.data,
+          formattedDate: formatRelative(
+            parseISO(response.data.createdAt),
+            new Date(),
+            {
+              locale: pt,
+            }
+          ),
+        };
+
+        if (response.data) {
+          setMessages((state) => [...state, newMessage]);
+          if (
+            recents.filter((value) => value._id === partner?._id).length > 0
+          ) {
+            recents.splice(
+              recents
+                .map((value) => (value as Partner)._id)
+                .indexOf(partner?._id as string),
+              1
+            );
+            setRecents([{ ...(partner as Partner) }, ...recents]);
+          } else {
+            setRecents([{ ...(partner as Partner) }, ...recents]);
+          }
+
+          setMessageContent('');
+          if (messageBodyRef.current) {
+            messageBodyRef.current.scrollTop =
+              messageBodyRef.current.scrollHeight;
+          }
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    }
+  }
+
   return (
-    <Container theme={selectedTheme}>
+    <Container>
+      {/* <audio src={notification} ref={notificationRef} /> */}
       <div>
         <header>
           <h1>RealTime</h1>
           <FiLogOut color="#333" size={16} onClick={logout} />
         </header>
         <Body>
-          <Users theme={selectedTheme}>
+          <Users>
             <div className="search">
               <input
                 type="text"
@@ -148,10 +289,7 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                 <FiSearch size={14} color="#333" />
               </button>
 
-              <Suggestions
-                theme={selectedTheme}
-                showSuggestions={showSuggestions}
-              >
+              <Suggestions showSuggestions={showSuggestions}>
                 <li className="suggest">
                   <span>Suggestions</span>
                 </li>
@@ -159,7 +297,9 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                   <li
                     className="result"
                     key={value._id}
-                    onMouseDown={() => loadMessages(value._id)}
+                    onMouseDown={() =>
+                      loadMessages(value._id, value.name, value.email)
+                    }
                   >
                     <h4>{value.name}</h4>
                     <span>{value.email}</span>
@@ -176,7 +316,9 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                 recents.map((value: any) => (
                   <li
                     className="recents"
-                    onClick={() => loadMessages(value._id)}
+                    onClick={() =>
+                      loadMessages(value._id, value.name, value.email)
+                    }
                     key={value._id}
                   >
                     <h4>{value.name}</h4>
@@ -190,10 +332,10 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
               )}
             </ul>
           </Users>
-          <ChatComponent theme={selectedTheme}>
-            {partnerId ? (
+          <ChatComponent>
+            {partner?._id ? (
               <>
-                <div className="messages">
+                <div className="messages" ref={messageBodyRef}>
                   {showContext && (
                     <ContextMenuModal
                       show={showContext}
@@ -203,17 +345,22 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                       onMoreInfo={() => {}}
                     />
                   )}
+                  {!messages[0] && (
+                    <div className="no-messages">
+                      <p>No messages</p>
+                    </div>
+                  )}
 
                   {messages.map((value: any) =>
-                    value.from === partnerId ? (
-                      <div className="received">
+                    value.from._id === partner?._id ? (
+                      <div className="received" key={value._id}>
                         <div>
                           <p>{value.content}</p>
-                          <span>Hoje às 22:34</span>
+                          <span>{value.formattedDate}</span>
                         </div>
                       </div>
                     ) : (
-                      <div className="sent">
+                      <div className="sent" key={value._id}>
                         <div>
                           <p
                             onContextMenu={(event: any) =>
@@ -224,7 +371,8 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                             {value.content}
                           </p>
                           <span>
-                            Hoje às 22:34 <FiEye size={11} color="#333" />
+                            {value.formattedDate}{' '}
+                            <FiEye size={11} color="#333" />
                           </span>
                         </div>
                       </div>
@@ -235,12 +383,14 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                   <textarea
                     onKeyDown={autosize}
                     onKeyUp={resizeOnDelete}
+                    onChange={(e) => setMessageContent(e.target.value)}
+                    value={messageContent}
                     rows={1}
                     name="message-bar"
                     id="message-bar"
                     placeholder="Type your message..."
                   />
-                  <button id="send-message">
+                  <button id="send-message" onClick={sendMessage}>
                     <FiSend color="#fff" size={20} />
                   </button>
                 </div>

@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 
 const ThemeSwitcher: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
-  const { selectedTheme, selectTheme, colors } = useContext<any>(ThemeContext);
+  const { selectedTheme, selectTheme, colors } = useContext(ThemeContext);
 
   function openModal() {
     setShowModal(true);
@@ -40,11 +40,13 @@ const ThemeSwitcher: React.FC = () => {
         <Arrow />
         <h3>Select a theme</h3>
         <ul>
-          {colors.map((color: any) => (
+          {colors?.map((color: any) => (
             <ListColor
               key={color.id}
               theme={color}
-              onClick={() => selectTheme(color.id, setShowModal)}
+              onClick={() => {
+                if (selectTheme) selectTheme(color.id, setShowModal);
+              }}
             ></ListColor>
           ))}
         </ul>
