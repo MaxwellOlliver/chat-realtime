@@ -166,7 +166,22 @@ class MessageController {
       }
     } else if (method === 'delete') {
       if (messageId) {
-        await Message.updateOne({ _id: messageId }, { deleted: true });
+        await Message.updateOne(
+          { _id: messageId },
+          { deleted: true, content: '' }
+        );
+      }
+
+      const message: any = await Message.findOne({ _id: messageId }).populate(
+        'from'
+      );
+
+      if (message) {
+        const ownerSocket = req.connectedUsers[message.to._id];
+
+        if (ownerSocket) {
+          req.io.to(ownerSocket).emit('deleteMessage', message);
+        }
       }
     }
 
