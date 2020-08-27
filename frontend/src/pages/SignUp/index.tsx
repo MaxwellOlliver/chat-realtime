@@ -89,7 +89,7 @@ const SignUp: React.FC = () => {
             placeholder="Your password"
             value={password}
             onKeyDown={() =>
-              password.length >= 8 ? setDisable(false) : setDisable(true)
+              password.length >= 7 ? setDisable(false) : setDisable(true)
             }
             onChange={(e) => setPassword(e.target.value)}
           />

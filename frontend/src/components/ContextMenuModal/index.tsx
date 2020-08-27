@@ -1,28 +1,33 @@
-import React, { useRef } from 'react';
+import React, { useRef, useContext } from 'react';
 
 import { Modal } from './styles';
 
 import { FiTrash, FiInfo, FiCopy } from 'react-icons/fi';
 import api from '../../services/api';
+import { Message } from '../../pages/Chat';
+import { UserContext } from '../../context/UserContext';
 
 const ContextMenuModal: React.FC<{
   show: boolean;
   x?: number;
   y?: number;
   onMoreInfo: Function;
-  message: { _id: string };
+  message: Partial<Message>;
+  messages: Partial<Message[]>;
+  setMessages(message: Message[]): void;
 }> = (props) => {
   const modalRef = useRef<HTMLUListElement>(null);
   const liRef = useRef(null);
 
+  const { token } = useContext(UserContext);
+
   let coordinates = { x: props.x, y: props.y };
 
   function handleCopy() {
-    let text: any = document.getElementById('content-1');
     let elem: any = document.createElement('textarea');
-    if (text && elem) {
+    if (elem) {
       document.body.appendChild(elem);
-      elem.value = text.innerText;
+      elem.value = props.message.content;
       elem.select();
       document.execCommand('copy');
       document.body.removeChild(elem);
@@ -30,13 +35,27 @@ const ContextMenuModal: React.FC<{
   }
 
   async function handleDeleteAMessage() {
-    // try {
-    //   await api.put('/messages?method=delete', {
-    //     headers: { msgId: props.message._id },
-    //   });
-    // } catch (error) {
-    //   cpuUsage.log(error);
-    // }
+    try {
+      await api.patch(
+        `/messages?method=delete&messageId=${props.message._id}`,
+        {},
+        {
+          headers: { authorization: `Bearer ${token}` },
+        }
+      );
+
+      let arr: any = props.messages;
+
+      arr.forEach((value: Message) => {
+        if (value._id === props.message._id) {
+          value.deleted = true;
+        }
+      });
+
+      props.setMessages(arr);
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   return (

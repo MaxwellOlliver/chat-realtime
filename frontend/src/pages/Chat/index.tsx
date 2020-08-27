@@ -6,7 +6,14 @@ import pt from 'date-fns/locale/pt-BR';
 
 import socketio from 'socket.io-client';
 
-import { FiLogOut, FiSend, FiEye, FiSearch } from 'react-icons/fi';
+import {
+  FiLogOut,
+  FiSend,
+  FiEye,
+  FiSearch,
+  FiEyeOff,
+  FiTrash,
+} from 'react-icons/fi';
 import ContextMenuModal from '../../components/ContextMenuModal';
 
 import {
@@ -23,21 +30,25 @@ import { AxiosResponse } from 'axios';
 import { parseISO } from 'date-fns/esm';
 
 interface Partner {
-  _id: string;
+  readonly _id: string;
   name: string;
   email: string;
 }
 
-interface Message {
-  _id: string;
+export interface Message {
+  readonly _id: string;
   content: string;
-  from: User;
-  to: User;
+  from: Partner;
+  to: Partner;
   createdAt: string;
+  wasReaded: boolean;
+  deleted: boolean;
+  formattedDate?: string;
 }
 
 const Chat: React.FC<{ history: any }> = ({ history }) => {
   const [showContext, setShowContext] = useState(false);
+  const [contextMessage, setContextMessage] = useState<Partial<Message>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [partner, setPartner] = useState<Partner | null>(null);
@@ -57,10 +68,32 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
 
   const { user, token, setUser, _setToken } = useContext(UserContext);
 
-  function openContextMenu(e: MouseEvent, message: any) {
+  function _setMessages(messages: Message[]) {
+    let msgFormatted = messages.map((message: Message) => {
+      if (!message.formattedDate) {
+        return {
+          ...message,
+          formattedDate: formatRelative(
+            parseISO(message.createdAt),
+            new Date(),
+            {
+              locale: pt,
+            }
+          ),
+        };
+      } else {
+        return message;
+      }
+    });
+
+    setMessages(msgFormatted);
+  }
+
+  function openContextMenu(e: MouseEvent, message: Message) {
     e.preventDefault();
     let coords = { x: e.pageX, y: e.pageY };
 
+    setContextMessage(message);
     setCoordinates(coords);
     setShowContext(true);
   }
@@ -77,14 +110,14 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
       try {
         let tk: any = localStorage.getItem('CR_TOKEN');
         if (_setToken) _setToken(tk);
-        const response = await api.get('/message/recents', {
+        const recents = await api.get('/message/recents', {
           headers: { authorization: `Bearer ${tk}` },
         });
         const loggedUser = await api.get<User>('/me', {
           headers: { authorization: `Bearer ${tk}` },
         });
 
-        setRecents(response.data);
+        setRecents(recents.data);
         if (setUser) setUser(loggedUser.data);
       } catch (err) {}
     })();
@@ -93,49 +126,72 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
 
   useEffect(() => {
     let tk = token || localStorage.getItem('CR_TOKEN');
-    const socket = socketio.connect('http://localhost:3333', {
+    const socket = socketio('http://localhost:3333', {
       query: {
         token: tk,
       },
     });
 
-    socket.on('receivedMessage', (data: Message) => {
-      console.log(data);
+    socket.on('message', async (data: Message) => {
       if (partner?._id === data.from._id) {
-        let newMessage = {
-          ...data,
-          formattedDate: formatRelative(parseISO(data.createdAt), new Date(), {
-            locale: pt,
-          }),
-        };
-        setMessages([...messages, newMessage]);
+        try {
+          console.log('teste1');
+          await api.patch(
+            `/messages?method=read&messageId=${data._id}`,
+            {},
+            {
+              headers: { authorization: `Bearer ${tk}` },
+            }
+          );
+          console.log('teste2');
+          _setMessages([...messages, data]);
+        } catch (error) {
+          console.log('teste3');
+          console.log(error);
+        }
+      } else {
+        let notify = document.querySelector(`#msg-${data.from._id}`);
+
+        if (notify) {
+          notify.classList.add('message-received');
+        }
       }
 
-      if (recents.filter((value) => value._id === partner?._id).length > 0) {
-        recents.splice(
-          recents
+      if (recents.find((value: Partner) => value._id === data.from._id)) {
+        let arr: Partner[] = recents;
+        arr.splice(
+          arr
             .map((value) => (value as Partner)._id)
-            .indexOf(partner?._id as string),
+            .indexOf(data.from._id as string),
           1
         );
+        setRecents([{ ...data.from }, ...arr]);
+      } else {
+        setRecents((state) => [{ ...data.from }, ...state]);
       }
-      setRecents([{ ...(partner as Partner) }, ...recents]);
-      // if (!partner._id) {
-      //   document
-      //     .querySelector(`#user-${data.from._id}`)
-      //     .classList.add('message-received');
-      // } else if (partner._id !== data.from._id) {
-      //   document
-      //     .querySelector(`#user-${data.from._id}`)
-      //     .classList.add('message-received');
-      // }
 
       if (messageBodyRef.current) {
         messageBodyRef.current.scrollTop = messageBodyRef.current.scrollHeight;
       }
     });
+
+    socket.on('readMessage', (data: Message) => {
+      if (Array.isArray(data)) {
+        _setMessages(data);
+      } else {
+        let arr: Message[] = messages;
+
+        arr.forEach((value: Message) => {
+          if (value._id === data._id) {
+            value.wasReaded = true;
+          }
+        });
+
+        _setMessages(arr);
+      }
+    });
     //eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, messages, recents]);
+  }, [partner, messages, recents]);
 
   function autosize() {
     let el = document.querySelector('textarea');
@@ -177,29 +233,27 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
     }
   }, 100);
 
-  async function loadMessages(_id: string, name: string, email: string) {
-    if (_id === partner?._id) return;
+  async function loadMessages(user: Partner) {
+    if (user._id === partner?._id) return;
 
     try {
       const response: AxiosResponse<Message[]> = await api.get(
-        `/message/list?recipient=${_id}`,
+        `/message/list?recipient=${user._id}`,
         {
           headers: { authorization: `Bearer ${token}` },
         }
       );
 
-      setPartner({ _id, name, email });
+      let notify = document.querySelector(`#msg-${user._id}`);
 
-      let formatted = response.data.map((value: any) => {
-        return {
-          ...value,
-          formattedDate: formatRelative(parseISO(value.createdAt), new Date(), {
-            locale: pt,
-          }),
-        };
-      });
+      if (notify) {
+        if (notify.classList.contains('message-received')) {
+          notify.classList.remove('message-received');
+        }
+      }
 
-      setMessages(formatted);
+      setPartner({ ...user });
+      _setMessages(response.data);
       if (messageBodyRef.current) {
         messageBodyRef.current.scrollTop = messageBodyRef.current.scrollHeight;
       }
@@ -224,19 +278,9 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
             },
           }
         );
-        let newMessage = {
-          ...response.data,
-          formattedDate: formatRelative(
-            parseISO(response.data.createdAt),
-            new Date(),
-            {
-              locale: pt,
-            }
-          ),
-        };
 
         if (response.data) {
-          setMessages((state) => [...state, newMessage]);
+          _setMessages([...messages, response.data]);
           if (
             recents.filter((value) => value._id === partner?._id).length > 0
           ) {
@@ -291,15 +335,15 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
 
               <Suggestions showSuggestions={showSuggestions}>
                 <li className="suggest">
-                  <span>Suggestions</span>
+                  <span>
+                    {suggestions[0] ? 'Suggestions' : 'No suggestions'}
+                  </span>
                 </li>
                 {suggestions.map((value: any) => (
                   <li
                     className="result"
                     key={value._id}
-                    onMouseDown={() =>
-                      loadMessages(value._id, value.name, value.email)
-                    }
+                    onMouseDown={() => loadMessages(value)}
                   >
                     <h4>{value.name}</h4>
                     <span>{value.email}</span>
@@ -316,13 +360,12 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                 recents.map((value: any) => (
                   <li
                     className="recents"
-                    onClick={() =>
-                      loadMessages(value._id, value.name, value.email)
-                    }
+                    onClick={() => loadMessages(value)}
                     key={value._id}
                   >
                     <h4>{value.name}</h4>
                     <span>{value.email}</span>
+                    <div className="" id={`msg-${value._id}`}></div>
                   </li>
                 ))
               ) : (
@@ -341,7 +384,9 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                       show={showContext}
                       x={coordinates.x}
                       y={coordinates.y}
-                      message={{ _id: '' }}
+                      message={contextMessage}
+                      messages={messages}
+                      setMessages={_setMessages}
                       onMoreInfo={() => {}}
                     />
                   )}
@@ -355,25 +400,37 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                     value.from._id === partner?._id ? (
                       <div className="received" key={value._id}>
                         <div>
-                          <p>{value.content}</p>
-                          <span>{value.formattedDate}</span>
+                          <p className={value.deleted ? 'excluded' : undefined}>
+                            {value.deleted
+                              ? 'That message has been deleted.'
+                              : value.content}
+                          </p>
+                          {!value.deleted && <span>{value.formattedDate}</span>}
                         </div>
                       </div>
                     ) : (
                       <div className="sent" key={value._id}>
                         <div>
                           <p
+                            className={value.deleted ? 'excluded' : undefined}
                             onContextMenu={(event: any) =>
-                              openContextMenu(event, {})
+                              openContextMenu(event, value)
                             }
-                            id="content-1"
                           >
-                            {value.content}
+                            {value.deleted
+                              ? 'That message has been deleted.'
+                              : value.content}
                           </p>
-                          <span>
-                            {value.formattedDate}{' '}
-                            <FiEye size={11} color="#333" />
-                          </span>
+                          {!value.deleted && (
+                            <span>
+                              {value.formattedDate}
+                              {!value.wasReaded ? (
+                                <FiEyeOff size={11} color="#333" />
+                              ) : (
+                                <FiEye size={11} color="#333" />
+                              )}
+                            </span>
+                          )}
                         </div>
                       </div>
                     )

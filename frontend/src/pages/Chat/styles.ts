@@ -362,6 +362,7 @@ export const Users = styled.div`
     }
 
     li.recents {
+      position: relative;
       width: 100%;
       height: 70px;
       display: flex;
@@ -386,6 +387,24 @@ export const Users = styled.div`
 
       &:hover {
         background-color: #eee;
+      }
+
+      div.message-received {
+        background: linear-gradient(
+            to bottom,
+            ${(props) => props.theme.primary},
+            ${(props) => props.theme.secondary}
+          )
+          center;
+        background-size: 200%;
+
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+
+        position: absolute;
+        top: calc(50% - 6.5px);
+        right: 10px;
       }
     }
 
@@ -547,6 +566,10 @@ export const Chat = styled.div`
       div {
         padding: 0 0 0 10px;
       }
+      p.excluded {
+        font-style: italic !important;
+        color: #f3f3f3;
+      }
     }
 
     .sent {
@@ -562,6 +585,10 @@ export const Chat = styled.div`
           margin: 0 5px 0 0;
           justify-content: flex-end;
         }
+      }
+      p.excluded {
+        font-style: italic;
+        color: #777;
       }
     }
   }
