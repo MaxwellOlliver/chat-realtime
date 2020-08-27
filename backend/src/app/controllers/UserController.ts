@@ -32,7 +32,7 @@ class UserController {
     return res.json(user);
   }
 
-  async index(req: Request, res: Response) {
+  async index(req: any, res: Response) {
     const q = req.query.q;
 
     if (!q) {
@@ -41,7 +41,7 @@ class UserController {
 
     const regex = new RegExp(`^${q}`);
 
-    const users = await User.find({ email: regex });
+    const users = await User.find({ email: regex, _id: { $ne: req.userId } });
 
     return res.json(users);
   }

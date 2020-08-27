@@ -42,18 +42,22 @@ class MessageController {
     });
 
     const message: any = await Message.findById(msg._id)
-      .populate('from', 'name')
-      .populate('to', 'name');
+      .populate('from', ['name', 'email'])
+      .populate('to', ['name', 'email']);
 
     // const ownerSocket: any = await ConnectedUsers.findOne({
     //   userId: message.to._id,
     // });
+    // const ownerSocket = req.redisStore.get(`${message.to._id}`);
+
     const ownerSocket = req.connectedUsers[message.to._id];
 
     if (ownerSocket) {
-      req.io
-        .to(ownerSocket.socketId)
-        .emit('receivedMessage', { data: message });
+      try {
+        req.io.to(ownerSocket).emit('message', message);
+      } catch (err) {
+        console.log(err);
+      }
     }
 
     return res.json(message);
@@ -62,7 +66,7 @@ class MessageController {
   async index(req: any, res: Response) {
     const { recipient, page = 1 }: any = req.query;
 
-    const messages = await Message.find({
+    const cachedMessage = await Message.find({
       $or: [
         { to: recipient, from: req.userId },
         { to: req.userId, from: recipient },
@@ -74,7 +78,36 @@ class MessageController {
       .populate('from', 'name')
       .populate('to', 'name');
 
-    messages.reverse();
+    let messages: any;
+    try {
+      await Message.updateMany(
+        { wasReaded: false, from: recipient, to: req.userId },
+        { wasReaded: true }
+      );
+
+      messages = await Message.find({
+        $or: [
+          { to: recipient, from: req.userId },
+          { to: req.userId, from: recipient },
+        ],
+      })
+        .sort({ createdAt: -1 })
+        .limit(25)
+        .skip((page - 1) * 25)
+        .populate('from', 'name')
+        .populate('to', 'name');
+
+      messages.reverse();
+    } catch (err) {
+      cachedMessage.reverse();
+      return res.json(cachedMessage);
+    }
+
+    const ownerSocket = req.connectedUsers[recipient];
+
+    if (ownerSocket) {
+      req.io.to(ownerSocket).emit('readMessage', messages);
+    }
 
     return res.json(messages);
   }
@@ -110,6 +143,34 @@ class MessageController {
     });
 
     return res.json(users);
+  }
+
+  async update(req: any, res: Response) {
+    const { method, messageId } = req.query;
+
+    if (!method || method === 'read') {
+      if (messageId) {
+        await Message.updateOne({ _id: messageId }, { wasReaded: true });
+
+        const message: any = await Message.findOne({ _id: messageId }).populate(
+          'from'
+        );
+
+        if (message) {
+          const ownerSocket = req.connectedUsers[message.from._id];
+
+          if (ownerSocket) {
+            req.io.to(ownerSocket).emit('readMessage', message);
+          }
+        }
+      }
+    } else if (method === 'delete') {
+      if (messageId) {
+        await Message.updateOne({ _id: messageId }, { deleted: true });
+      }
+    }
+
+    return res.status(204).send();
   }
 }
 

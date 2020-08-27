@@ -18,6 +18,18 @@ const MessageSchema = new Schema(
       required: true,
       ref: 'Users',
     },
+
+    deleted: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+
+    wasReaded: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
   },
   {
     timestamps: true,

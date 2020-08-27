@@ -17,6 +17,8 @@ routes.get('/users', UserController.index);
 routes.get('/message/recents', MessageController.listUsers);
 routes.post('/message', MessageController.store);
 routes.get('/message/list', MessageController.index);
+routes.patch('/messages', MessageController.update);
+
 routes.get('/me', UserController.show);
 
 export default routes;
