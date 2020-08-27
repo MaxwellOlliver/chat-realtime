@@ -19,6 +19,8 @@ export const Container = styled.div`
   align-items: center;
   justify-content: center;
 
+  overflow-y: hidden;
+
   background: linear-gradient(
       to left,
       ${(props) => props.theme.primary},
@@ -68,6 +70,21 @@ export const Container = styled.div`
         cursor: pointer;
       }
     }
+  }
+
+  div.loading {
+    width: 60%;
+    min-height: 70vh;
+    background-color: #fff;
+
+    border-radius: 4px;
+    box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.2);
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
   }
 `;
 
@@ -408,6 +425,10 @@ export const Users = styled.div`
       }
     }
 
+    li.recents.active {
+      background-color: #ccc;
+    }
+
     li.no-recents {
       width: 100%;
 
@@ -589,6 +610,12 @@ export const Chat = styled.div`
       p.excluded {
         font-style: italic;
         color: #777;
+      }
+    }
+
+    .sent.not-sent {
+      p {
+        opacity: 0.4;
       }
     }
   }

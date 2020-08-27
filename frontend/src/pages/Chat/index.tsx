@@ -12,7 +12,7 @@ import {
   FiEye,
   FiSearch,
   FiEyeOff,
-  FiTrash,
+  FiClock,
 } from 'react-icons/fi';
 import ContextMenuModal from '../../components/ContextMenuModal';
 
@@ -28,6 +28,7 @@ import api from '../../services/api';
 import { UserContext, User } from '../../context/UserContext';
 import { AxiosResponse } from 'axios';
 import { parseISO } from 'date-fns/esm';
+import Loader from '../../components/Loader';
 
 interface Partner {
   readonly _id: string;
@@ -36,7 +37,7 @@ interface Partner {
 }
 
 export interface Message {
-  readonly _id: string;
+  _id?: string;
   content: string;
   from: Partner;
   to: Partner;
@@ -44,9 +45,13 @@ export interface Message {
   wasReaded: boolean;
   deleted: boolean;
   formattedDate?: string;
+  notSent?: boolean;
 }
 
 const Chat: React.FC<{ history: any }> = ({ history }) => {
+  const [loading, setLoading] = useState(true);
+  const [messageLoading, setMessageLoading] = useState(true);
+
   const [showContext, setShowContext] = useState(false);
   const [contextMessage, setContextMessage] = useState<Partial<Message>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -89,6 +94,12 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
     setMessages(msgFormatted);
   }
 
+  useEffect(() => {
+    if (messageBodyRef.current && messages[messages.length - 1].notSent) {
+      messageBodyRef.current.scrollTop = messageBodyRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   function openContextMenu(e: MouseEvent, message: Message) {
     e.preventDefault();
     let coords = { x: e.pageX, y: e.pageY };
@@ -119,6 +130,7 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
 
         setRecents(recents.data);
         if (setUser) setUser(loggedUser.data);
+        setLoading(false);
       } catch (err) {}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,7 +147,6 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
     socket.on('message', async (data: Message) => {
       if (partner?._id === data.from._id) {
         try {
-          console.log('teste1');
           await api.patch(
             `/messages?method=read&messageId=${data._id}`,
             {},
@@ -143,10 +154,20 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
               headers: { authorization: `Bearer ${tk}` },
             }
           );
-          console.log('teste2');
           _setMessages([...messages, data]);
+          console.table(
+            messageBodyRef?.current?.scrollTop,
+            messageBodyRef?.current?.scrollHeight
+          );
+          // if (
+          //   messageBodyRef.current &&
+          //   messageBodyRef.current.scrollTop >
+          //     messageBodyRef.current.scrollHeight - 100
+          // ) {
+          //   messageBodyRef.current.scrollTop =
+          //     messageBodyRef.current.scrollHeight;
+          // }
         } catch (error) {
-          console.log('teste3');
           console.log(error);
         }
       } else {
@@ -169,10 +190,6 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
       } else {
         setRecents((state) => [{ ...data.from }, ...state]);
       }
-
-      if (messageBodyRef.current) {
-        messageBodyRef.current.scrollTop = messageBodyRef.current.scrollHeight;
-      }
     });
 
     socket.on('readMessage', (data: Message) => {
@@ -189,6 +206,19 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
 
         _setMessages(arr);
       }
+    });
+
+    socket.on('deleteMessage', (data: Message) => {
+      let arr: Message[] = messages;
+
+      arr.forEach((value: Message) => {
+        if (value._id === data._id) {
+          value.content = data.content;
+          value.deleted = true;
+        }
+      });
+
+      _setMessages(arr);
     });
     //eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partner, messages, recents]);
@@ -237,6 +267,7 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
     if (user._id === partner?._id) return;
 
     try {
+      setPartner({ ...user });
       const response: AxiosResponse<Message[]> = await api.get(
         `/message/list?recipient=${user._id}`,
         {
@@ -244,7 +275,7 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
         }
       );
 
-      let notify = document.querySelector(`#msg-${user._id}`);
+      let notify = document.querySelector(`#recent-${user._id}`);
 
       if (notify) {
         if (notify.classList.contains('message-received')) {
@@ -252,8 +283,9 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
         }
       }
 
-      setPartner({ ...user });
       _setMessages(response.data);
+      setMessageLoading(false);
+
       if (messageBodyRef.current) {
         messageBodyRef.current.scrollTop = messageBodyRef.current.scrollHeight;
       }
@@ -265,6 +297,20 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
   async function sendMessage() {
     if (messageContent) {
       try {
+        let date = new Date().toISOString();
+        let message: Message = {
+          content: messageContent,
+          from: user as Partner,
+          to: partner as Partner,
+          wasReaded: false,
+          createdAt: date,
+          deleted: false,
+          notSent: true,
+        };
+
+        _setMessages([...messages, message]);
+        setMessageContent('');
+
         const response: AxiosResponse<Message> = await api.post(
           '/message',
           {
@@ -280,7 +326,8 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
         );
 
         if (response.data) {
-          _setMessages([...messages, response.data]);
+          let msgArr = messages.filter((value) => value.notSent !== true);
+          _setMessages([...msgArr, response.data]);
           if (
             recents.filter((value) => value._id === partner?._id).length > 0
           ) {
@@ -294,17 +341,41 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
           } else {
             setRecents([{ ...(partner as Partner) }, ...recents]);
           }
-
-          setMessageContent('');
-          if (messageBodyRef.current) {
-            messageBodyRef.current.scrollTop =
-              messageBodyRef.current.scrollHeight;
-          }
         }
       } catch (err) {
         console.log(err);
       }
     }
+  }
+
+  // const loadMoreMessages = _.debounce(async () => {
+  //   if (messageBodyRef.current) {
+  //     if (messageBodyRef.current.scrollTop <= 300) {
+  //       try {
+  //         page.current++;
+  //         const response: AxiosResponse<Message[]> = await api.get(
+  //           `/message/list?recipient=${partner?._id}&page=${page.current}`,
+  //           {
+  //             headers: { authorization: `Bearer ${token}` },
+  //           }
+  //         );
+
+  //         _setMessages([...response.data, ...messages]);
+  //       } catch (error) {
+  //         console.log(error);
+  //       }
+  //     }
+  //   }
+  // }, 100);
+
+  if (loading) {
+    return (
+      <Container>
+        <div className="loading">
+          <Loader />
+        </div>
+      </Container>
+    );
   }
 
   return (
@@ -359,13 +430,15 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
               {recents[0] ? (
                 recents.map((value: any) => (
                   <li
-                    className="recents"
+                    className={
+                      value._id === partner?._id ? 'recents active' : 'recents'
+                    }
                     onClick={() => loadMessages(value)}
                     key={value._id}
                   >
                     <h4>{value.name}</h4>
                     <span>{value.email}</span>
-                    <div className="" id={`msg-${value._id}`}></div>
+                    <div className="" id={`recent-${value._id}`}></div>
                   </li>
                 ))
               ) : (
@@ -376,9 +449,18 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
             </ul>
           </Users>
           <ChatComponent>
-            {partner?._id ? (
+            {partner?._id && messageLoading && (
+              <div className="welcome">
+                <Loader />
+              </div>
+            )}
+            {partner?._id && !messageLoading && (
               <>
-                <div className="messages" ref={messageBodyRef}>
+                <div
+                  className="messages"
+                  ref={messageBodyRef}
+                  // onScroll={loadMoreMessages}
+                >
                   {showContext && (
                     <ContextMenuModal
                       show={showContext}
@@ -396,9 +478,9 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                     </div>
                   )}
 
-                  {messages.map((value: any) =>
+                  {messages.map((value: any, index: number) =>
                     value.from._id === partner?._id ? (
-                      <div className="received" key={value._id}>
+                      <div className="received" key={value._id || index}>
                         <div>
                           <p className={value.deleted ? 'excluded' : undefined}>
                             {value.deleted
@@ -409,7 +491,10 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                         </div>
                       </div>
                     ) : (
-                      <div className="sent" key={value._id}>
+                      <div
+                        className={value._id ? 'sent' : 'sent not-sent'}
+                        key={value._id || index}
+                      >
                         <div>
                           <p
                             className={value.deleted ? 'excluded' : undefined}
@@ -418,13 +503,15 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                             }
                           >
                             {value.deleted
-                              ? 'That message has been deleted.'
+                              ? 'This message has been deleted.'
                               : value.content}
                           </p>
                           {!value.deleted && (
                             <span>
                               {value.formattedDate}
-                              {!value.wasReaded ? (
+                              {value.notSent ? (
+                                <FiClock size={11} color="#333" />
+                              ) : !value.wasReaded ? (
                                 <FiEyeOff size={11} color="#333" />
                               ) : (
                                 <FiEye size={11} color="#333" />
@@ -452,7 +539,8 @@ const Chat: React.FC<{ history: any }> = ({ history }) => {
                   </button>
                 </div>
               </>
-            ) : (
+            )}
+            {!partner && (
               <div className="welcome">
                 <h3>Welcome!</h3>
                 <span>Start a conversation with your friends...</span>
